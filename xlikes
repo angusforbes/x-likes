@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# Runs x_likes.py inside the project venv, creating the venv on first use.
+set -euo pipefail
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [ ! -x "$here/.venv/bin/python" ]; then
+  echo "Creating venv and installing Playwright…" >&2
+  python3 -m venv "$here/.venv"
+  "$here/.venv/bin/pip" install -q -r "$here/requirements.txt"
+fi
+exec "$here/.venv/bin/python" "$here/x_likes.py" "$@"

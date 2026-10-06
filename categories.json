@@ -1,0 +1,23 @@
+{
+  "categories": [
+    {"name": "AI",       "description": "Machine learning, LLMs, agents, model releases, AI research papers, prompting, AI tooling and infrastructure, AI industry news"},
+    {"name": "Graphics", "description": "Real-time and offline rendering, shaders, GPU programming (CUDA, Vulkan, WebGPU), ray tracing, game engines, procedural generation, demoscene, graphics research"},
+    {"name": "Art",      "description": "Illustration, painting, photography, generative and creative-coding art, animation, 3D art, concept art, aesthetics — posts where the artwork itself is the point"},
+    {"name": "Vis",      "description": "Data visualization, charts, maps, dashboards, explorable explanations, scientific visualization, infographics, visualization tooling"},
+    {"name": "Dev",      "description": "Programming, languages, compilers, developer tooling, editors, terminals, Linux and desktop setups, systems programming, performance, software engineering practice"},
+    {"name": "Hardware", "description": "Chips, GPUs and CPUs as products, silicon design, devices, robotics, electronics, DIY hardware, datacenters"},
+    {"name": "Science",  "description": "Math, physics, astronomy and space, biology, chemistry, engineering, research outside of AI and graphics"},
+    {"name": "Design",   "description": "UI/UX, product design, typography, industrial design, architecture, interfaces, motion design"},
+    {"name": "Industry", "description": "Company and business news, funding, careers, leadership, markets, product launches without a technical angle"},
+    {"name": "Humor",    "description": "Memes, jokes, shitposts, funny observations"},
+    {"name": "Life",     "description": "Personal reflections, advice, health, relationships, politics and current events, culture, sports, food, travel"},
+    {"name": "Other",    "description": "Anything that fits none of the above"}
+  ],
+  "notes": [
+    "Categorize by the main subject of the post, not its format: a chart about GPU prices is Hardware unless the visualization technique itself is what makes it interesting.",
+    "AI-generated images where the image is the point -> Art; posts about the model, technique, or tooling that made it -> AI.",
+    "GPU/CPU/silicon news and specs -> Hardware; programming GPUs (CUDA, shaders, rendering) -> Graphics.",
+    "Terminal, editor, and Linux desktop customization -> Dev.",
+    "Product launches with a technical deep-dive -> the technical category; funding or business angle -> Industry."
+  ]
+}

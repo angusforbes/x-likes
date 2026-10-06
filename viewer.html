@@ -1,0 +1,370 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>X likes</title>
+<style>
+:root{
+  color-scheme:light;
+  --page:#f9f9f7;--surface:#fcfcfb;--ink:#0b0b0b;--ink-2:#52514e;--muted:#898781;
+  --grid:#e1e0d9;--axis:#c3c2b7;--border:rgba(11,11,11,.10);
+  --accent:#2a78d6;--dim:#c3c2b7;--wash:rgba(42,120,214,.10);--chip:#f0efec;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    color-scheme:dark;
+    --page:#0d0d0d;--surface:#1a1a19;--ink:#ffffff;--ink-2:#c3c2b7;--muted:#898781;
+    --grid:#2c2c2a;--axis:#383835;--border:rgba(255,255,255,.10);
+    --accent:#3987e5;--dim:#52514e;--wash:rgba(57,135,229,.16);--chip:#262624;
+  }
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0;background:var(--page);color:var(--ink);font:14px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
+a{color:inherit;text-decoration:none}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer;text-align:left}
+input,select{font:inherit;color:inherit}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.layout{display:grid;grid-template-columns:232px minmax(0,1fr);gap:28px;max-width:1500px;margin:0 auto;padding:20px 24px 60px}
+aside{position:sticky;top:20px;align-self:start;display:flex;flex-direction:column;gap:22px;max-height:calc(100vh - 40px);overflow:auto}
+@media (max-width:900px){.layout{grid-template-columns:1fr;gap:18px}aside{position:static;max-height:none}}
+
+h1{font-size:17px;margin:0;font-weight:650;letter-spacing:-.01em}
+.sub{color:var(--ink-2);font-size:13px;margin-top:3px}
+h3{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0 0 6px 8px}
+.catlist{display:flex;flex-direction:column;gap:1px}
+.cat{display:grid;grid-template-columns:1fr auto;column-gap:8px;row-gap:5px;padding:6px 8px 7px;border-radius:8px;width:100%}
+.cat:hover{background:var(--chip)}
+.cat.on{background:var(--wash)}
+.cat.on .name{font-weight:600}
+.cat .n{color:var(--ink-2);font-variant-numeric:tabular-nums;font-size:13px}
+.cat .bar{grid-column:1/-1;height:3px}
+.cat .bar i{display:block;height:100%;background:var(--accent);border-radius:0 2px 2px 0}
+.clear{color:var(--ink-2);font-size:12px;text-decoration:underline;text-decoration-color:var(--axis);text-underline-offset:3px;margin-left:8px}
+.clear:hover{color:var(--ink)}
+
+.toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:16px}
+.toolbar input{flex:1 1 260px;min-width:200px;padding:8px 12px;border:1px solid var(--border);border-radius:10px;background:var(--surface);outline:none}
+.toolbar input:focus{border-color:var(--accent);outline:none}
+.toolbar select{padding:8px 10px;border:1px solid var(--border);border-radius:10px;background:var(--surface)}
+.count{color:var(--ink-2);font-variant-numeric:tabular-nums;margin-left:auto;white-space:nowrap}
+
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px 16px 12px;margin-bottom:20px}
+.panel-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;min-height:24px}
+.panel-head .t{font-weight:600;font-size:13px}
+.link{color:var(--ink-2);font-size:12px;text-decoration:underline;text-decoration-color:var(--axis);text-underline-offset:3px;margin-left:auto}
+.link:hover{color:var(--ink)}
+.chip{display:inline-flex;align-items:center;gap:6px;background:var(--wash);border-radius:999px;padding:2px 8px 2px 10px;font-size:12px;font-weight:600}
+.chip button{font-size:15px;line-height:1;color:var(--ink-2);padding:0 2px}
+.chip button:hover{color:var(--ink)}
+.bars{position:relative;display:flex;gap:2px;height:118px;padding-bottom:18px}
+.bars.months{height:92px;margin-top:14px}
+.bars::before{content:"";position:absolute;left:0;right:0;bottom:18px;border-top:1px solid var(--axis)}
+.slot{flex:1 1 0;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;position:relative;min-width:0;border-radius:6px}
+.slot .bar{width:min(24px,100%);background:var(--accent);border-radius:4px 4px 0 0}
+.bars.sel .slot:not(.on) .bar{background:var(--dim)}
+.slot:hover .bar,.slot:focus-visible .bar{filter:brightness(1.12)}
+.slot .lbl{position:absolute;bottom:-18px;font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+.slot.on .lbl{color:var(--ink);font-weight:600}
+.mhead{font-size:12px;color:var(--ink-2);margin-top:14px}
+.bars.months{margin-top:6px}
+table.counts{border-collapse:collapse;font-size:12px;font-variant-numeric:tabular-nums;width:100%;margin-top:4px}
+table.counts th,table.counts td{padding:4px 6px;text-align:right;border-bottom:1px solid var(--grid);white-space:nowrap}
+table.counts th{color:var(--muted);font-weight:500}
+table.counts th:first-child,table.counts td:first-child{text-align:left}
+table.counts td button{width:100%;text-align:right;border-radius:4px;padding:0 3px}
+table.counts td button:hover{background:var(--wash)}
+table.counts td button.on{background:var(--wash);font-weight:600}
+table.counts .tot{font-weight:600}
+#tip{position:fixed;z-index:10;pointer-events:none;background:var(--ink);color:var(--page);padding:5px 9px;border-radius:8px;font-size:12px;transform:translate(-50%,calc(-100% - 8px));white-space:nowrap}
+#tip b{font-size:13px}
+
+.month{display:flex;align-items:baseline;gap:8px;margin:24px 0 10px;font-size:15px;font-weight:600}
+.month:first-child{margin-top:2px}
+.month .n{color:var(--ink-2);font-weight:400;font-size:13px;font-variant-numeric:tabular-nums}
+.month button:hover{text-decoration:underline;text-underline-offset:3px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;display:flex;flex-direction:column}
+.media{position:relative;display:block;background:var(--chip)}
+.media img{display:block;width:100%;max-height:320px;object-fit:cover}
+.media .play{position:absolute;left:10px;bottom:10px;background:rgba(0,0,0,.65);color:#fff;font-size:11px;padding:3px 8px;border-radius:999px}
+.media .play.n{left:auto;right:10px}
+.body{padding:12px 14px;display:flex;flex-direction:column;gap:8px;flex:1}
+.who{display:flex;justify-content:space-between;gap:8px;align-items:baseline;font-size:13px;min-width:0}
+.who a{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.who .h{color:var(--ink-2)}
+.who time{color:var(--ink-2);font-variant-numeric:tabular-nums;white-space:nowrap;font-size:12px}
+.text{margin:0;white-space:pre-wrap;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:8;-webkit-box-orient:vertical;overflow:hidden}
+.card.x .text,.card.x blockquote{display:block}
+.text a{color:var(--accent)}
+blockquote{margin:2px 0;padding:0 10px;border-left:2px solid var(--axis);color:var(--ink-2);font-size:13px;white-space:pre-wrap;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+.foot{margin-top:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;color:var(--ink-2)}
+.badge{background:var(--chip);border-radius:999px;padding:2px 9px;font-weight:600;color:var(--ink)}
+.badge:hover{background:var(--wash)}
+.tags{display:flex;gap:6px;flex-wrap:wrap}
+.tags button:hover{text-decoration:underline;text-underline-offset:3px}
+.conf{color:var(--ink-2);font-variant-numeric:tabular-nums}
+.open{margin-left:auto;color:var(--muted)}
+.open:hover{color:var(--accent)}
+#more{display:block;margin:28px auto 0;padding:9px 18px;border:1px solid var(--border);border-radius:999px;background:var(--surface);color:var(--ink-2)}
+#more:hover{color:var(--ink);border-color:var(--axis)}
+.empty{color:var(--ink-2);padding:40px 0;text-align:center}
+</style>
+</head>
+<body>
+<div class="layout">
+  <aside>
+    <div><h1>X likes</h1><div class="sub" id="sub"></div></div>
+    <nav>
+      <h3>Category</h3>
+      <div class="catlist" id="cats"></div>
+    </nav>
+    <div id="clearwrap" hidden><button class="clear" id="clear">Clear all filters</button></div>
+  </aside>
+  <main>
+    <div class="toolbar">
+      <input id="q" type="search" placeholder="Search text, @author, #tag" autocomplete="off">
+      <select id="sort" aria-label="Sort order">
+        <option value="created">Newest post first</option>
+        <option value="liked">Order you liked them</option>
+      </select>
+      <span class="count" id="count"></span>
+    </div>
+    <section class="panel" aria-label="Browse by date">
+      <div class="panel-head"><span class="t" id="tltitle">Likes per year</span><span id="datechip"></span><button class="link" id="tbl">table</button></div>
+      <div id="charts">
+        <div class="bars" id="years" role="group" aria-label="Likes per year"></div>
+        <div class="mhead" id="mhead" hidden></div>
+        <div class="bars months" id="months" role="group" aria-label="Likes per month" hidden></div>
+      </div>
+      <div id="table" hidden></div>
+    </section>
+    <div id="list"></div>
+    <button id="more" hidden></button>
+  </main>
+</div>
+<div id="tip" role="tooltip" hidden></div>
+<script src="likes.js"></script>
+<script>
+(function(){
+'use strict';
+const D = window.XLIKES;
+const $ = id => document.getElementById(id);
+const el = {sub:$('sub'),cats:$('cats'),clearwrap:$('clearwrap'),q:$('q'),sort:$('sort'),count:$('count'),tltitle:$('tltitle'),
+  datechip:$('datechip'),tbl:$('tbl'),charts:$('charts'),years:$('years'),mhead:$('mhead'),months:$('months'),table:$('table'),
+  list:$('list'),more:$('more'),tip:$('tip')};
+if (!D || !D.rows) { el.list.innerHTML = '<div class="empty">No data: likes.js is missing. Run <code>./xlikes export</code> and reload.</div>'; return; }
+
+const ROWS = D.rows;
+const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const MON_LONG = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const PAGE = 120;
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt = n => n.toLocaleString('en-US');
+
+for (const r of ROWS) {
+  r.category = r.category || 'Uncategorized';
+  r.y = r.created_at ? +r.created_at.slice(0, 4) : null;
+  r.m = r.created_at ? +r.created_at.slice(5, 7) : null;
+  r.ym = r.created_at ? r.created_at.slice(0, 7) : '';
+  r._s = [r.text, '@' + r.author, r.name, (r.tags || []).map(t => '#' + t).join(' '),
+          r.quoted ? '@' + r.quoted.author + ' ' + r.quoted.text : '', r.category].join(' ').toLowerCase();
+}
+const CATS = [...(D.categories || [])];
+for (const r of ROWS) if (!CATS.includes(r.category)) CATS.push(r.category);
+const YEARS = ROWS.filter(r => r.y).map(r => r.y);
+const YMIN = Math.min(...YEARS), YMAX = Math.max(...YEARS);
+
+const state = {cat: 'All', y: null, m: null, q: '', sort: 'created', table: false};
+function readHash() {
+  const p = new URLSearchParams(location.hash.slice(1));
+  state.cat = p.get('cat') || 'All'; state.y = p.get('y') ? +p.get('y') : null; state.m = p.get('m') ? +p.get('m') : null;
+  state.q = p.get('q') || ''; state.sort = p.get('sort') === 'liked' ? 'liked' : 'created'; state.table = p.get('view') === 'table';
+}
+function writeHash() {
+  const p = new URLSearchParams();
+  if (state.cat !== 'All') p.set('cat', state.cat); if (state.y) p.set('y', state.y); if (state.m) p.set('m', state.m);
+  if (state.q) p.set('q', state.q); if (state.sort !== 'created') p.set('sort', state.sort); if (state.table) p.set('view', 'table');
+  const h = '#' + p.toString();
+  try { history.replaceState(null, '', h === '#' ? location.pathname : h); } catch (e) { location.replace(h); }
+}
+
+const inCat = r => state.cat === 'All' || r.category === state.cat;
+const inDate = r => state.y === null || (r.y === state.y && (state.m === null || r.m === state.m));
+function matcher() {
+  const toks = state.q.toLowerCase().split(/\s+/).filter(Boolean);
+  return r => toks.every(t => r._s.includes(t));
+}
+function sortRows(list) {
+  if (state.sort === 'liked') list.sort((a, b) => (a.liked_index ?? 1e12) - (b.liked_index ?? 1e12));
+  else list.sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
+}
+
+// ---- sidebar
+function renderCats(rows) {
+  const counts = new Map(CATS.map(c => [c, 0]));
+  for (const r of rows) counts.set(r.category, (counts.get(r.category) || 0) + 1);
+  const max = Math.max(1, ...counts.values());
+  const items = [['All', rows.length], ...CATS.map(c => [c, counts.get(c) || 0])];
+  el.cats.innerHTML = items.map(([c, n]) =>
+    `<button class="cat${c === state.cat ? ' on' : ''}" data-cat="${esc(c)}" aria-pressed="${c === state.cat}">` +
+    `<span class="name">${esc(c)}</span><span class="n">${fmt(n)}</span>` +
+    (c === 'All' ? '' : `<span class="bar"><i style="width:${(n / max * 100).toFixed(1)}%"></i></span>`) + `</button>`).join('');
+  const any = state.cat !== 'All' || state.y !== null || state.q;
+  el.clearwrap.hidden = !any;
+}
+
+// ---- timeline
+function renderTime(rows) {
+  const byY = new Map(), byYM = new Map();
+  for (const r of rows) { if (!r.y) continue; byY.set(r.y, (byY.get(r.y) || 0) + 1); byYM.set(r.ym, (byYM.get(r.ym) || 0) + 1); }
+  el.tltitle.textContent = state.table ? 'Likes per month' : 'Likes per year' + (state.cat === 'All' ? '' : ' · ' + state.cat);
+  el.tbl.textContent = state.table ? 'chart' : 'table';
+  el.charts.hidden = state.table; el.table.hidden = !state.table;
+  // date chip
+  el.datechip.innerHTML = state.y === null ? '' :
+    `<span class="chip">${state.m ? MON_LONG[state.m - 1] + ' ' : ''}${state.y}<button data-cleardate aria-label="Clear date filter">×</button></span>`;
+  if (state.table) { renderTable(byYM, byY); return; }
+  // years
+  const H = Math.max(40, el.years.clientHeight - 18);
+  const ymax = Math.max(1, ...byY.values());
+  let html = '';
+  for (let y = YMIN; y <= YMAX; y++) {
+    const n = byY.get(y) || 0, on = state.y === y, h = n ? Math.max(2, Math.round(n / ymax * H)) : 0;
+    html += `<button class="slot${on ? ' on' : ''}" data-y="${y}" data-n="${n}" data-label="${y}" aria-pressed="${on}" aria-label="${y}: ${fmt(n)} likes">` +
+            `<span class="bar" style="height:${h}px"></span><span class="lbl">${y}</span></button>`;
+  }
+  el.years.innerHTML = html; el.years.classList.toggle('sel', state.y !== null);
+  // months of the selected year
+  el.mhead.hidden = el.months.hidden = state.y === null;
+  if (state.y !== null) {
+    const HM = Math.max(30, el.months.clientHeight - 18);
+    const vals = MON.map((_, i) => byYM.get(`${state.y}-${String(i + 1).padStart(2, '0')}`) || 0);
+    const mmax = Math.max(1, ...vals);
+    el.mhead.textContent = `${state.y} by month · ${fmt(byY.get(state.y) || 0)} likes`;
+    el.months.innerHTML = vals.map((n, i) => {
+      const m = i + 1, on = state.m === m, h = n ? Math.max(2, Math.round(n / mmax * HM)) : 0;
+      return `<button class="slot${on ? ' on' : ''}" data-m="${m}" data-n="${n}" data-label="${MON[i]} ${state.y}" aria-pressed="${on}" aria-label="${MON_LONG[i]} ${state.y}: ${fmt(n)} likes">` +
+             `<span class="bar" style="height:${h}px"></span><span class="lbl">${MON[i]}</span></button>`;
+    }).join('');
+    el.months.classList.toggle('sel', state.m !== null);
+  }
+}
+function renderTable(byYM, byY) {
+  let html = '<table class="counts"><thead><tr><th>Year</th>' + MON.map(m => `<th>${m}</th>`).join('') + '<th>Total</th></tr></thead><tbody>';
+  for (let y = YMAX; y >= YMIN; y--) {
+    html += `<tr><td>${y}</td>`;
+    for (let m = 1; m <= 12; m++) {
+      const n = byYM.get(`${y}-${String(m).padStart(2, '0')}`) || 0, on = state.y === y && state.m === m;
+      html += `<td>${n ? `<button data-y="${y}" data-m="${m}" class="${on ? 'on' : ''}">${fmt(n)}</button>` : ''}</td>`;
+    }
+    html += `<td class="tot">${fmt(byY.get(y) || 0)}</td></tr>`;
+  }
+  el.table.innerHTML = html + '</tbody></table>';
+}
+
+// ---- tooltip
+function showTip(slot) {
+  const n = +slot.dataset.n, r = slot.getBoundingClientRect();
+  el.tip.textContent = ''; const b = document.createElement('b'); b.textContent = fmt(n);
+  el.tip.append(b, ` ${n === 1 ? 'like' : 'likes'} · ${slot.dataset.label}`);
+  const bar = slot.querySelector('.bar').getBoundingClientRect();
+  el.tip.style.left = (r.left + r.width / 2) + 'px'; el.tip.style.top = (bar.height ? bar.top : r.bottom - 18) + 'px'; el.tip.hidden = false;
+}
+function hideTip() { el.tip.hidden = true; }
+
+// ---- cards
+let LIST = [], pos = 0, lastYM = null, grid = null, MONTH_COUNTS = new Map();
+function linkify(s) {
+  return esc(s).replace(/https?:\/\/[^\s<]+/g, u => `<a href="${u}" target="_blank" rel="noopener">${u.replace(/^https?:\/\//, '').replace(/\/$/, '')}</a>`);
+}
+function card(r) {
+  const date = r.created_at ? r.created_at.slice(0, 10) : '';
+  const media = r.image ? `<a class="media" href="${esc(r.url)}" target="_blank" rel="noopener"><img loading="lazy" src="${esc(r.image)}" alt="">` +
+    (r.video ? '<span class="play">▶ video</span>' : '') + (r.media_count > 1 ? `<span class="play n">${r.media_count} media</span>` : '') + '</a>' : '';
+  const conf = r.confidence != null ? `<span class="conf" title="classifier confidence">${Math.round(r.confidence * 100)}%</span>` : '';
+  const tags = (r.tags || []).map(t => `<button data-tag="${esc(t)}">#${esc(t)}</button>`).join('');
+  return `<article class="card">${media}<div class="body">` +
+    `<div class="who"><a href="${esc(r.url)}" target="_blank" rel="noopener"><b>${esc(r.name || '@' + r.author)}</b> <span class="h">@${esc(r.author)}</span></a><time datetime="${esc(r.created_at || '')}">${date}</time></div>` +
+    (r.text ? `<p class="text">${linkify(r.text)}</p>` : '') +
+    (r.quoted ? `<blockquote><b>@${esc(r.quoted.author)}</b> ${esc(r.quoted.text)}</blockquote>` : '') +
+    `<div class="foot"><button class="badge" data-cat="${esc(r.category)}">${esc(r.category)}</button><span class="tags">${tags}</span>${conf}` +
+    `<a class="open" href="${esc(r.url)}" target="_blank" rel="noopener">open ↗</a></div></div></article>`;
+}
+function renderList(list) {
+  LIST = list; pos = 0; lastYM = null; grid = null; el.list.innerHTML = '';
+  MONTH_COUNTS = new Map(); for (const r of list) MONTH_COUNTS.set(r.ym, (MONTH_COUNTS.get(r.ym) || 0) + 1);
+  if (!list.length) el.list.innerHTML = '<div class="empty">Nothing matches these filters.</div>';
+  appendPage();
+}
+function appendPage() {
+  const end = Math.min(pos + PAGE, LIST.length), frag = document.createDocumentFragment();
+  for (let i = pos; i < end; i++) {
+    const r = LIST[i];
+    if (state.sort === 'created' && r.ym !== lastYM) {
+      lastYM = r.ym;
+      const h = document.createElement('h2'); h.className = 'month';
+      h.innerHTML = r.y ? `<button data-y="${r.y}" data-m="${r.m}">${MON_LONG[r.m - 1]} ${r.y}</button><span class="n">${fmt(MONTH_COUNTS.get(r.ym))}</span>`
+                        : `<span>Undated</span><span class="n">${fmt(MONTH_COUNTS.get(''))}</span>`;
+      frag.appendChild(h); grid = document.createElement('div'); grid.className = 'grid'; frag.appendChild(grid);
+    }
+    if (!grid) { grid = document.createElement('div'); grid.className = 'grid'; frag.appendChild(grid); }
+    grid.insertAdjacentHTML('beforeend', card(r));
+  }
+  el.list.appendChild(frag); pos = end;
+  el.more.hidden = pos >= LIST.length;
+  if (!el.more.hidden) el.more.textContent = `Show more · ${fmt(LIST.length - pos)} remaining`;
+}
+new IntersectionObserver(es => { if (es.some(e => e.isIntersecting) && !el.more.hidden) appendPage(); }, {rootMargin: '600px'}).observe(el.more);
+
+// ---- update
+function update() {
+  const q = matcher(), byQ = ROWS.filter(q);
+  renderCats(byQ.filter(inDate));
+  const forTime = byQ.filter(inCat);
+  renderTime(forTime);
+  const list = forTime.filter(inDate); sortRows(list);
+  renderList(list);
+  el.count.textContent = `${fmt(list.length)} of ${fmt(ROWS.length)} likes`;
+  writeHash();
+}
+function setDate(y, m) {
+  y = y === null || y === undefined || y === '' ? null : +y; m = m === null || m === undefined || m === '' ? null : +m;
+  if (m !== null) { if (state.y === y && state.m === m) { state.m = null; } else { state.y = y; state.m = m; } }
+  else if (state.y === y && state.m === null) { state.y = null; }
+  else { state.y = y; state.m = null; }
+  update();
+}
+
+// ---- events
+document.addEventListener('click', e => {
+  const t = e.target.closest('button,a,.text');
+  if (!t) return;
+  if (t.matches('a')) return;
+  if (t.matches('#more')) { appendPage(); return; }
+  if (t.matches('#tbl')) { state.table = !state.table; update(); return; }
+  if (t.matches('#clear')) { state.cat = 'All'; state.y = state.m = null; state.q = ''; el.q.value = ''; update(); return; }
+  if (t.hasAttribute('data-cleardate')) { state.y = state.m = null; update(); return; }
+  if (t.dataset.cat !== undefined) { state.cat = t.dataset.cat === state.cat && t.classList.contains('cat') ? 'All' : t.dataset.cat; update(); window.scrollTo({top: 0}); return; }
+  if (t.dataset.tag !== undefined) { state.q = '#' + t.dataset.tag; el.q.value = state.q; update(); window.scrollTo({top: 0}); return; }
+  if (t.dataset.m !== undefined && t.dataset.y === undefined) { setDate(state.y, t.dataset.m); return; }
+  if (t.dataset.y !== undefined) { hideTip(); setDate(t.dataset.y, t.dataset.m); if (t.closest('.month')) window.scrollTo({top: 0}); return; }
+  if (t.matches('.text')) { t.closest('.card').classList.toggle('x'); }
+});
+let qt; el.q.addEventListener('input', () => { clearTimeout(qt); qt = setTimeout(() => { state.q = el.q.value.trim(); update(); }, 120); });
+el.sort.addEventListener('change', () => { state.sort = el.sort.value; update(); });
+for (const ev of ['pointerover', 'focusin']) document.addEventListener(ev, e => { const s = e.target.closest('.slot'); if (s) showTip(s); });
+for (const ev of ['pointerout', 'focusout']) document.addEventListener(ev, e => { if (e.target.closest && e.target.closest('.slot')) hideTip(); });
+window.addEventListener('hashchange', () => { readHash(); el.q.value = state.q; el.sort.value = state.sort; update(); });
+window.addEventListener('resize', () => renderTime(ROWS.filter(matcher()).filter(inCat)));
+
+// ---- init
+readHash(); el.q.value = state.q; el.sort.value = state.sort;
+el.sub.textContent = `${fmt(ROWS.length)} likes · ${YMIN}–${YMAX}` + (D.generated ? ` · exported ${D.generated.slice(0, 10)}` : '');
+update();
+})();
+</script>
+</body>
+</html>

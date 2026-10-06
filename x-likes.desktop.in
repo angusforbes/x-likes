@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=X Likes
+Comment=Browse your saved X/Twitter likes (local, offline)
+Exec=@DIR@/xlikes-view
+Icon=emblem-favorite
+Terminal=false
+Categories=Utility;

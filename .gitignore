@@ -1,0 +1,19 @@
+# NEVER commit: the logged-in browser session, your likes data, media and exports.
+/.browser-profile/
+/data/
+/media/
+/out/
+*.log
+# the demo's generated viewer (demo/data and demo/media ARE committed: made-up data)
+/demo/out/
+# secrets and local config
+.env
+.env.*
+*.cookie
+*.cookies
+cookies*.json
+auth*.json
+# python / tooling
+.venv/
+__pycache__/
+*.pyc
