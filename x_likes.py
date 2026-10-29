@@ -811,7 +811,41 @@ class AnthropicAPI:
         raise RuntimeError("API kept returning 429/5xx")
 
 
+class NVInference:
+    """NVIDIA Inference Hub (OpenAI-compatible chat API), same endpoint and key file as pi's
+    nv-inference provider (~/.pi/agent/models.json). Key file: $NV_INFERENCE_KEY_FILE or the default."""
+    name = "nv-inference"
+    url = os.environ.get("NV_INFERENCE_URL", "https://inference-api.nvidia.com/v1") + "/chat/completions"
+
+    def __init__(self, model):
+        self.model = model or "aws/anthropic/bedrock-claude-haiku-5-5"
+        kf = os.path.expanduser(os.environ.get("NV_INFERENCE_KEY_FILE", "~/.config/nemoclaw-secrets/nvidia_inference_hub_key"))
+        try:
+            self.key = open(kf).read().strip()
+        except OSError:
+            sys.exit(f"nv-inference key file not found: {kf} (or use --backend cli)")
+
+    def complete(self, prompt: str) -> str:
+        body = json.dumps({"model": self.model, "max_tokens": 8192, "temperature": 0,
+                           "messages": [{"role": "user", "content": prompt}]}).encode()
+        req = urllib.request.Request(self.url, data=body, headers={
+            "authorization": f"Bearer {self.key}", "content-type": "application/json"})
+        for attempt in range(5):
+            try:
+                with urllib.request.urlopen(req, timeout=300) as resp:
+                    data = json.loads(resp.read())
+                return data["choices"][0]["message"]["content"] or ""
+            except urllib.error.HTTPError as e:
+                if e.code == 429 or e.code >= 500:
+                    time.sleep(3 * 2 ** attempt)
+                    continue
+                raise RuntimeError(f"nv-inference HTTP {e.code}: {e.read()[:300]!r}")
+        raise RuntimeError("nv-inference kept returning 429/5xx")
+
+
 def pick_backend(args):
+    if args.backend in ("nv", "auto"):
+        return NVInference(args.model)
     key = os.environ.get("ANTHROPIC_API_KEY")
     if args.backend == "api" or (args.backend == "auto" and key):
         if not key:
@@ -1160,8 +1194,8 @@ def main(argv=None):
     p.set_defaults(func=cmd_enrich)
 
     p = sub.add_parser("categorize", help="classify likes into categories.json with Claude")
-    p.add_argument("--backend", choices=["auto", "cli", "api"], default="auto",
-                   help="auto = Anthropic API if ANTHROPIC_API_KEY is set, else `claude -p`")
+    p.add_argument("--backend", choices=["auto", "nv", "cli", "api"], default="auto",
+                   help="auto/nv = NVIDIA Inference Hub (default model aws/anthropic/bedrock-claude-haiku-5-5); cli = `claude -p`; api = Anthropic API")
     p.add_argument("--model", help="model name (API default claude-sonnet-5; CLI uses your default)")
     p.add_argument("--batch-size", type=int, default=40)
     p.add_argument("--workers", type=int, default=0, help="parallel requests (API 4, CLI 3)")

@@ -26,7 +26,7 @@ generated pictures) in `demo/`. After cloning, with just Python 3 and a browser:
    keeps the raw responses and writes one clean record per like to `data/likes.jsonl`.
 2. **Categorise:** `./xlikes categorize` sends batches of likes (text, author, alt text, links) to
    Claude, which picks one category from `categories.json` (edit it to taste), up to three tags and a
-   confidence, saved in `data/categories.jsonl`.
+   confidence, saved in `data/categories.jsonl`. By default it uses the NVIDIA Inference Hub (key file `~/.config/nemoclaw-secrets/nvidia_inference_hub_key`, model `aws/anthropic/bedrock-claude-haiku-5-5`); `--backend cli` uses `claude -p` instead. `./update` (or `xlikes-update`) runs scrape → categorise → export in one go.
 3. **Browse:** `./xlikes-view` exports everything (`out/`: a viewer page plus Markdown, CSV and JSON)
    and opens it: filter by category, search text, `@author` or `#tag`, sort by post date or by when
    you liked it.
