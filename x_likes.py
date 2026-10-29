@@ -1034,6 +1034,7 @@ def viewer_row(t: dict, c) -> dict:
         "image": image, "video": video, "media_count": len(t.get("media") or []),
         "quoted": {"author": t["quoted"]["author"], "text": t["quoted"]["text"]} if t.get("quoted") else None,
         "links": t.get("links") or [],
+        "source": t.get("site") or "x",
     }
 
 
@@ -1182,6 +1183,9 @@ def main(argv=None):
     p.add_argument("--wait", type=float, default=6.0, help="seconds to wait for X to answer a scroll (6)")
     p.add_argument("--max-idle", type=int, default=8, help="give up after N silent scrolls (8)")
     p.set_defaults(func=cmd_scrape)
+
+    import reddit_likes
+    reddit_likes.add_commands(sub)
 
     p = sub.add_parser("import-archive", help="merge like.js from an X data export (file, folder or .zip)")
     p.add_argument("path")

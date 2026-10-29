@@ -7,7 +7,13 @@ here="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 cd "$here"
 logdir="$HOME/Work/x-likes-runs"; mkdir -p "$logdir"
 log="$logdir/update-$(date +%Y%m%d-%H%M%S).log"
-before=$(wc -l < data/likes.jsonl 2>/dev/null || echo 0)
+count() { python3 -c 'import json,sys
+L={};C={}
+for l in open("data/likes.jsonl"): d=json.loads(l); L[d["id"]]=d
+for l in open("data/categories.jsonl"): d=json.loads(l); C[d["id"]]=1
+x=sum(1 for d in L.values() if d.get("site")!="reddit"); r=len(L)-x
+print(len(L), sum(1 for i in L if i in C), x, r)'; }
+read before _ _ _ < <(count 2>/dev/null || echo 0 0 0 0)
 .venv/bin/python -m playwright install chromium chromium-headless-shell >/dev/null 2>&1 || true
 echo "Scraping new likes (log: $log)…"
 if ! ./xlikes scrape --incremental --headless --login-timeout 1 2>&1 | tee -a "$log"; then
@@ -19,13 +25,31 @@ if ! ./xlikes scrape --incremental --headless --login-timeout 1 2>&1 | tee -a "$
   fi
   exit 1
 fi
+echo "Fetching Reddit upvoted + saved…"
+reddit_note=""
+# Reddit uses your Brave's Reddit login through brave-copy (a headless copy of your Brave profile, deleted after;
+# nothing on your screen). Without brave-copy it falls back to the scraper's own profile (xlikes reddit-login).
+if command -v brave-copy >/dev/null; then
+  brave-copy -- bash -c "cd '$here' && ./xlikes reddit --incremental --cdp \$BRAVE_COPY_PORT" 2>&1 | tee -a "$log"; rrc=${PIPESTATUS[0]}
+else
+  ./xlikes reddit --incremental 2>&1 | tee -a "$log"; rrc=${PIPESTATUS[0]}
+fi
+if [ "$rrc" = 3 ]; then
+  reddit_note="WARNING: not logged in to Reddit (log in at reddit.com in Brave), then run xlikes-update again. (X was updated anyway.)"
+  notify-send -a "X Likes" "Reddit login lapsed" "Log in at reddit.com in Brave, then run xlikes-update" 2>/dev/null || true
+elif [ "$rrc" != 0 ]; then
+  reddit_note="WARNING: Reddit fetch failed (exit $rrc; see $log). X was updated anyway."
+fi
 echo "Categorising…"
 ./xlikes categorize 2>&1 | tee -a "$log" || { echo "ERROR: categorize failed; see $log" >&2; exit 1; }
 echo "Rebuilding the page…"
 ./xlikes export 2>&1 | tee -a "$log" || { echo "ERROR: export failed; see $log" >&2; exit 1; }
-after=$(wc -l < data/likes.jsonl); cats=$(wc -l < data/categories.jsonl)
-echo "Done: $after likes ($((after-before)) new), $cats categorised. Page: file://$here/out/index.html ($(date -r out/index.html '+%-I:%M %p %Z'))" | tee -a "$log"
+read after cats nx nr < <(count)
+echo "Done: $after likes ($nx X + $nr Reddit; $((after-before)) new), $cats categorised. Page: file://$here/out/index.html ($(date -r out/index.html '+%-I:%M %p %Z'))" | tee -a "$log"
+[ -n "$reddit_note" ] && echo "$reddit_note" >&2
 if [ "$cats" -lt "$after" ]; then
-  echo "WARNING: $((after-cats)) likes are not categorised yet (claude -p failed; see $log, e.g. spend limit). They show as uncategorised; re-run xlikes-update later to finish." >&2
+  echo "WARNING: $((after-cats)) likes are not categorised yet (categorize failed; see $log). They show as uncategorised; re-run xlikes-update later to finish." >&2
   exit 2
 fi
+[ -n "$reddit_note" ] && exit 4
+exit 0

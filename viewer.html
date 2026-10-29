@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>X likes</title>
+<title>Likes (X + Reddit)</title>
 <style>
 :root{
   color-scheme:light;
@@ -126,6 +126,11 @@ blockquote{margin:2px 0;padding:0 10px;border-left:2px solid var(--axis);color:v
   <main>
     <div class="toolbar">
       <input id="q" type="search" placeholder="Search text, @author, #tag" autocomplete="off">
+      <select id="src" aria-label="Source">
+        <option value="all">X + Reddit</option>
+        <option value="x">X only</option>
+        <option value="reddit">Reddit only</option>
+      </select>
       <select id="sort" aria-label="Sort order">
         <option value="created">Newest post first</option>
         <option value="liked">Order you liked them</option>
@@ -152,7 +157,7 @@ blockquote{margin:2px 0;padding:0 10px;border-left:2px solid var(--axis);color:v
 'use strict';
 const D = window.XLIKES;
 const $ = id => document.getElementById(id);
-const el = {sub:$('sub'),cats:$('cats'),clearwrap:$('clearwrap'),q:$('q'),sort:$('sort'),count:$('count'),tltitle:$('tltitle'),
+const el = {sub:$('sub'),cats:$('cats'),clearwrap:$('clearwrap'),q:$('q'),sort:$('sort'),src:$('src'),count:$('count'),tltitle:$('tltitle'),
   datechip:$('datechip'),tbl:$('tbl'),charts:$('charts'),years:$('years'),mhead:$('mhead'),months:$('months'),table:$('table'),
   list:$('list'),more:$('more'),tip:$('tip')};
 if (!D || !D.rows) { el.list.innerHTML = '<div class="empty">No data: likes.js is missing. Run <code>./xlikes export</code> and reload.</div>'; return; }
@@ -177,16 +182,16 @@ for (const r of ROWS) if (!CATS.includes(r.category)) CATS.push(r.category);
 const YEARS = ROWS.filter(r => r.y).map(r => r.y);
 const YMIN = Math.min(...YEARS), YMAX = Math.max(...YEARS);
 
-const state = {cat: 'All', y: null, m: null, q: '', sort: 'created', table: false};
+const state = {src: 'all', cat: 'All', y: null, m: null, q: '', sort: 'created', table: false};
 function readHash() {
   const p = new URLSearchParams(location.hash.slice(1));
   state.cat = p.get('cat') || 'All'; state.y = p.get('y') ? +p.get('y') : null; state.m = p.get('m') ? +p.get('m') : null;
-  state.q = p.get('q') || ''; state.sort = p.get('sort') === 'liked' ? 'liked' : 'created'; state.table = p.get('view') === 'table';
+  state.src = ['x', 'reddit'].includes(p.get('src')) ? p.get('src') : 'all'; state.q = p.get('q') || ''; state.sort = p.get('sort') === 'liked' ? 'liked' : 'created'; state.table = p.get('view') === 'table';
 }
 function writeHash() {
   const p = new URLSearchParams();
   if (state.cat !== 'All') p.set('cat', state.cat); if (state.y) p.set('y', state.y); if (state.m) p.set('m', state.m);
-  if (state.q) p.set('q', state.q); if (state.sort !== 'created') p.set('sort', state.sort); if (state.table) p.set('view', 'table');
+  if (state.src !== 'all') p.set('src', state.src); if (state.q) p.set('q', state.q); if (state.sort !== 'created') p.set('sort', state.sort); if (state.table) p.set('view', 'table');
   const h = '#' + p.toString();
   try { history.replaceState(null, '', h === '#' ? location.pathname : h); } catch (e) { location.replace(h); }
 }
@@ -212,7 +217,7 @@ function renderCats(rows) {
     `<button class="cat${c === state.cat ? ' on' : ''}" data-cat="${esc(c)}" aria-pressed="${c === state.cat}">` +
     `<span class="name">${esc(c)}</span><span class="n">${fmt(n)}</span>` +
     (c === 'All' ? '' : `<span class="bar"><i style="width:${(n / max * 100).toFixed(1)}%"></i></span>`) + `</button>`).join('');
-  const any = state.cat !== 'All' || state.y !== null || state.q;
+  const any = state.cat !== 'All' || state.y !== null || state.q || state.src !== 'all';
   el.clearwrap.hidden = !any;
 }
 
@@ -287,7 +292,7 @@ function card(r) {
   const conf = r.confidence != null ? `<span class="conf" title="classifier confidence">${Math.round(r.confidence * 100)}%</span>` : '';
   const tags = (r.tags || []).map(t => `<button data-tag="${esc(t)}">#${esc(t)}</button>`).join('');
   return `<article class="card">${media}<div class="body">` +
-    `<div class="who"><a href="${esc(r.url)}" target="_blank" rel="noopener"><b>${esc(r.name || '@' + r.author)}</b> <span class="h">@${esc(r.author)}</span></a><time datetime="${esc(r.created_at || '')}">${date}</time></div>` +
+    `<div class="who"><a href="${esc(r.url)}" target="_blank" rel="noopener"><b>${esc(r.name || '@' + r.author)}</b> <span class="h">${r.source === 'reddit' ? 'u/' : '@'}${esc(r.author)}</span></a><time datetime="${esc(r.created_at || '')}">${date}</time></div>` +
     (r.text ? `<p class="text">${linkify(r.text)}</p>` : '') +
     (r.quoted ? `<blockquote><b>@${esc(r.quoted.author)}</b> ${esc(r.quoted.text)}</blockquote>` : '') +
     `<div class="foot"><button class="badge" data-cat="${esc(r.category)}">${esc(r.category)}</button><span class="tags">${tags}</span>${conf}` +
@@ -321,7 +326,7 @@ new IntersectionObserver(es => { if (es.some(e => e.isIntersecting) && !el.more.
 
 // ---- update
 function update() {
-  const q = matcher(), byQ = ROWS.filter(q);
+  const q = matcher(), byQ = ROWS.filter(r => state.src === 'all' || (r.source || 'x') === state.src).filter(q);
   renderCats(byQ.filter(inDate));
   const forTime = byQ.filter(inCat);
   renderTime(forTime);
@@ -345,7 +350,7 @@ document.addEventListener('click', e => {
   if (t.matches('a')) return;
   if (t.matches('#more')) { appendPage(); return; }
   if (t.matches('#tbl')) { state.table = !state.table; update(); return; }
-  if (t.matches('#clear')) { state.cat = 'All'; state.y = state.m = null; state.q = ''; el.q.value = ''; update(); return; }
+  if (t.matches('#clear')) { state.cat = 'All'; state.y = state.m = null; state.q = ''; el.q.value = ''; state.src = 'all'; el.src.value = 'all'; update(); return; }
   if (t.hasAttribute('data-cleardate')) { state.y = state.m = null; update(); return; }
   if (t.dataset.cat !== undefined) { state.cat = t.dataset.cat === state.cat && t.classList.contains('cat') ? 'All' : t.dataset.cat; update(); window.scrollTo({top: 0}); return; }
   if (t.dataset.tag !== undefined) { state.q = '#' + t.dataset.tag; el.q.value = state.q; update(); window.scrollTo({top: 0}); return; }
@@ -355,13 +360,14 @@ document.addEventListener('click', e => {
 });
 let qt; el.q.addEventListener('input', () => { clearTimeout(qt); qt = setTimeout(() => { state.q = el.q.value.trim(); update(); }, 120); });
 el.sort.addEventListener('change', () => { state.sort = el.sort.value; update(); });
+el.src.addEventListener('change', () => { state.src = el.src.value; update(); });
 for (const ev of ['pointerover', 'focusin']) document.addEventListener(ev, e => { const s = e.target.closest('.slot'); if (s) showTip(s); });
 for (const ev of ['pointerout', 'focusout']) document.addEventListener(ev, e => { if (e.target.closest && e.target.closest('.slot')) hideTip(); });
-window.addEventListener('hashchange', () => { readHash(); el.q.value = state.q; el.sort.value = state.sort; update(); });
+window.addEventListener('hashchange', () => { readHash(); el.q.value = state.q; el.sort.value = state.sort; el.src.value = state.src; update(); });
 window.addEventListener('resize', () => renderTime(ROWS.filter(matcher()).filter(inCat)));
 
 // ---- init
-readHash(); el.q.value = state.q; el.sort.value = state.sort;
+readHash(); el.q.value = state.q; el.sort.value = state.sort; el.src.value = state.src;
 el.sub.textContent = `${fmt(ROWS.length)} likes · ${YMIN}–${YMAX}` + (D.generated ? ` · exported ${D.generated.slice(0, 10)}` : '');
 update();
 })();
