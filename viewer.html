@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Likes (X + Reddit)</title>
+<title>Likes</title>
 <style>
 :root{
   color-scheme:light;
@@ -48,6 +48,12 @@ h3{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;
 .toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:16px}
 .toolbar input{flex:1 1 260px;min-width:200px;padding:8px 12px;border:1px solid var(--border);border-radius:10px;background:var(--surface);outline:none}
 .toolbar input:focus{border-color:var(--accent);outline:none}
+.seg{display:inline-flex;border:1px solid var(--border);border-radius:10px;overflow:hidden;background:var(--surface)}
+.seg button{padding:8px 12px;border-left:1px solid var(--border)}
+.seg button:first-child{border-left:0}
+.seg button .n{color:var(--ink-2);font-size:12px;margin-left:5px;font-variant-numeric:tabular-nums}
+.seg button.on{background:var(--accent);color:#fff;font-weight:600}
+.seg button.on .n{color:#fff;opacity:.85}
 .toolbar select{padding:8px 10px;border:1px solid var(--border);border-radius:10px;background:var(--surface)}
 .count{color:var(--ink-2);font-variant-numeric:tabular-nums;margin-left:auto;white-space:nowrap}
 
@@ -116,7 +122,7 @@ blockquote{margin:2px 0;padding:0 10px;border-left:2px solid var(--axis);color:v
 <body>
 <div class="layout">
   <aside>
-    <div><h1>X likes</h1><div class="sub" id="sub"></div></div>
+    <div><h1>Likes</h1><div class="sub" id="sub"></div></div>
     <nav>
       <h3>Category</h3>
       <div class="catlist" id="cats"></div>
@@ -126,11 +132,7 @@ blockquote{margin:2px 0;padding:0 10px;border-left:2px solid var(--axis);color:v
   <main>
     <div class="toolbar">
       <input id="q" type="search" placeholder="Search text, @author, #tag" autocomplete="off">
-      <select id="src" aria-label="Source">
-        <option value="all">X + Reddit</option>
-        <option value="x">X only</option>
-        <option value="reddit">Reddit only</option>
-      </select>
+      <div class="seg" id="src" role="group" aria-label="Source"></div>
       <select id="sort" aria-label="Sort order">
         <option value="created">Newest post first</option>
         <option value="liked">Order you liked them</option>
@@ -325,8 +327,15 @@ function appendPage() {
 new IntersectionObserver(es => { if (es.some(e => e.isIntersecting) && !el.more.hidden) appendPage(); }, {rootMargin: '600px'}).observe(el.more);
 
 // ---- update
+function renderSrc(rows) {
+  let nx = 0, nr = 0; for (const r of rows) (r.source === 'reddit' ? nr++ : nx++);
+  el.src.innerHTML = [['x', 'X', nx], ['reddit', 'Reddit', nr], ['all', 'Both', nx + nr]].map(([v, l, n]) =>
+    `<button data-src="${v}" class="${state.src === v ? 'on' : ''}" aria-pressed="${state.src === v}">${l}<span class="n">${fmt(n)}</span></button>`).join('');
+}
 function update() {
-  const q = matcher(), byQ = ROWS.filter(r => state.src === 'all' || (r.source || 'x') === state.src).filter(q);
+  const q = matcher(), byQAll = ROWS.filter(q);
+  renderSrc(byQAll);
+  const byQ = byQAll.filter(r => state.src === 'all' || (r.source || 'x') === state.src);
   renderCats(byQ.filter(inDate));
   const forTime = byQ.filter(inCat);
   renderTime(forTime);
@@ -350,7 +359,8 @@ document.addEventListener('click', e => {
   if (t.matches('a')) return;
   if (t.matches('#more')) { appendPage(); return; }
   if (t.matches('#tbl')) { state.table = !state.table; update(); return; }
-  if (t.matches('#clear')) { state.cat = 'All'; state.y = state.m = null; state.q = ''; el.q.value = ''; state.src = 'all'; el.src.value = 'all'; update(); return; }
+  if (t.matches('#clear')) { state.cat = 'All'; state.y = state.m = null; state.q = ''; el.q.value = ''; state.src = 'all'; update(); return; }
+  if (t.dataset.src !== undefined) { state.src = t.dataset.src; update(); return; }
   if (t.hasAttribute('data-cleardate')) { state.y = state.m = null; update(); return; }
   if (t.dataset.cat !== undefined) { state.cat = t.dataset.cat === state.cat && t.classList.contains('cat') ? 'All' : t.dataset.cat; update(); window.scrollTo({top: 0}); return; }
   if (t.dataset.tag !== undefined) { state.q = '#' + t.dataset.tag; el.q.value = state.q; update(); window.scrollTo({top: 0}); return; }
@@ -360,14 +370,13 @@ document.addEventListener('click', e => {
 });
 let qt; el.q.addEventListener('input', () => { clearTimeout(qt); qt = setTimeout(() => { state.q = el.q.value.trim(); update(); }, 120); });
 el.sort.addEventListener('change', () => { state.sort = el.sort.value; update(); });
-el.src.addEventListener('change', () => { state.src = el.src.value; update(); });
 for (const ev of ['pointerover', 'focusin']) document.addEventListener(ev, e => { const s = e.target.closest('.slot'); if (s) showTip(s); });
 for (const ev of ['pointerout', 'focusout']) document.addEventListener(ev, e => { if (e.target.closest && e.target.closest('.slot')) hideTip(); });
-window.addEventListener('hashchange', () => { readHash(); el.q.value = state.q; el.sort.value = state.sort; el.src.value = state.src; update(); });
+window.addEventListener('hashchange', () => { readHash(); el.q.value = state.q; el.sort.value = state.sort; update(); });
 window.addEventListener('resize', () => renderTime(ROWS.filter(matcher()).filter(inCat)));
 
 // ---- init
-readHash(); el.q.value = state.q; el.sort.value = state.sort; el.src.value = state.src;
+readHash(); el.q.value = state.q; el.sort.value = state.sort;
 el.sub.textContent = `${fmt(ROWS.length)} likes · ${YMIN}–${YMAX}` + (D.generated ? ` · exported ${D.generated.slice(0, 10)}` : '');
 update();
 })();

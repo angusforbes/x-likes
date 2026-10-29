@@ -1055,7 +1055,7 @@ def cmd_export(args):
     n_media = sum(1 for t, _ in rows if t.get("media"))
     dates = sorted(t["created_at"][:10] for t, _ in rows if t.get("created_at"))
     authors = Counter((t.get("author") or {}).get("handle") for t, _ in rows if (t.get("author") or {}).get("handle"))
-    index = [f"# X likes archive", "",
+    index = [f"# Likes archive (X + Reddit)", "",
              f"Generated {datetime.now():%Y-%m-%d %H:%M} · {len(rows):,} likes · {n_cat:,} categorized · "
              f"{n_media:,} with media" + (f" · posts from {dates[0]} to {dates[-1]}" if dates else ""), "",
              "Open [index.html](index.html) for a browsable gallery.", "",
