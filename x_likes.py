@@ -267,7 +267,8 @@ def normalize_tweet(res, depth: int = 0):
         q = normalize_tweet((res.get("quoted_status_result") or {}).get("result"), depth + 1)
         if q:
             quoted = {"id": q["id"], "url": q["url"], "author": q["author"]["handle"], "name": q["author"]["name"],
-                      "text": q["text"], "media_count": len(q["media"])}
+                      "text": q["text"], "created_at": q["created_at"], "media": q["media"],
+                      "media_count": len(q["media"])}
             # the client hides the quoted post's own link; it is just a pointer to `quoted`
             links = [l for l in links if q["id"] not in l]
             text = re.sub(r"\s*https?://\S*" + re.escape(q["id"]) + r"\S*", "", text)
@@ -927,8 +928,9 @@ def cmd_media(args):
     likes = load_likes()
     jobs = []
     for t in likes.values():
-        d = MEDIA / t["id"]
-        for i, m in enumerate(t.get("media") or [], 1):
+        for d, items in ((MEDIA / t["id"], t.get("media") or []),
+                         (MEDIA / f"{t['id']}-q", (t.get("quoted") or {}).get("media") or [])):
+          for i, m in enumerate(items, 1):
             if m["type"] == "photo":
                 fmt = re.search(r"format=(\w+)", m["url"])
                 jobs.append((m["url"], d / f"{i}.{fmt.group(1) if fmt else 'jpg'}"))
@@ -1017,22 +1019,38 @@ def md_tweet(t: dict, c) -> str:
 
 def viewer_row(t: dict, c) -> dict:
     a = t.get("author") or {}
-    image = video = None
+    image = video = mtype = None
     for i, m in enumerate(t.get("media") or [], 1):
         main, thumb = local_media(t["id"], i)
         if m["type"] == "photo":
             image = image or (f"../{main}" if main else m.get("thumb"))
         else:
             image = image or (f"../{thumb}" if thumb else m.get("thumb"))
-            video = video or (f"../{main}" if main else m.get("video_url"))
+            if not video:
+                video = f"../{main}" if main else m.get("video_url")
+                mtype = m["type"] if video else None
+    q = t.get("quoted")
+    quoted = None
+    if q:
+        qm = []
+        for i, m in enumerate(q.get("media") or [], 1):
+            main, thumb = local_media(f"{t['id']}-q", i)
+            poster = f"../{thumb}" if thumb else m.get("thumb")
+            if m["type"] == "photo":
+                qm.append({"type": "photo", "poster": f"../{main}" if main else m.get("thumb")})
+            else:
+                qm.append({"type": m["type"], "poster": poster, "src": f"../{main}" if main else m.get("video_url")})
+        quoted = {"author": q.get("author"), "name": q.get("name"), "created_at": q.get("created_at"),
+                  "url": q.get("url"), "text": q.get("text") or "", "media": qm,
+                  "media_count": q.get("media_count") or len(qm)}
     return {
         "id": t["id"], "url": t["url"], "created_at": t.get("created_at"),
         "author": a.get("handle") or "", "name": a.get("name") or "", "text": t.get("text") or "",
         "liked_index": t.get("liked_index"),
         "category": (c or {}).get("category") or "Uncategorized", "tags": (c or {}).get("tags") or [],
         "confidence": (c or {}).get("confidence"),
-        "image": image, "video": video, "media_count": len(t.get("media") or []),
-        "quoted": {"author": t["quoted"]["author"], "text": t["quoted"]["text"]} if t.get("quoted") else None,
+        "image": image, "video": video, "mtype": mtype, "media_count": len(t.get("media") or []),
+        "quoted": quoted,
         "links": t.get("links") or [],
         "source": t.get("site") or "x",
     }
@@ -1115,6 +1133,33 @@ def cmd_stats(args):
     authors = Counter((t.get("author") or {}).get("handle") for t in likes.values() if t.get("author"))
     if authors:
         log("Top authors: " + ", ".join(f"@{h} ({n})" for h, n in authors.most_common(10)))
+
+
+def cmd_requote(args):
+    """Refill each like's quoted tweet (name, date, media) from data/raw/, changing nothing else."""
+    likes = load_likes()
+    fresh: dict[str, dict] = {}
+    for path in sorted(RAW.glob("*.jsonl.gz")):
+        with gzip.open(path, "rt", encoding="utf-8") as f:
+            for line in f:
+                try:
+                    rec = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                for kind, _e, res in iter_timeline_entries(rec.get("data") or {}):
+                    if kind == "tweet":
+                        t = normalize_tweet(res)
+                        if t and t.get("quoted"):
+                            fresh[t["id"]] = t["quoted"]
+    n = 0
+    for tid, t in likes.items():
+        if t.get("quoted") and tid in fresh and t["quoted"].get("id") == fresh[tid]["id"]:
+            t["quoted"] = fresh[tid]
+            n += 1
+    shutil.copy2(LIKES_FILE, LIKES_FILE.with_suffix(".jsonl.bak"))
+    write_jsonl(LIKES_FILE, likes.values())
+    with_media = sum(1 for t in likes.values() if (t.get("quoted") or {}).get("media"))
+    log(f"Refilled {n:,} quoted tweets from {RAW}; {with_media:,} quoted tweets have media (backup likes.jsonl.bak).")
 
 
 def cmd_reparse(args):
@@ -1220,6 +1265,7 @@ def main(argv=None):
 
     sub.add_parser("stats", help="summarize what is on disk").set_defaults(func=cmd_stats)
     sub.add_parser("reparse", help="rebuild likes.jsonl from data/raw/").set_defaults(func=cmd_reparse)
+    sub.add_parser("requote", help="refill quoted tweets (name, date, media) from data/raw/").set_defaults(func=cmd_requote)
 
     args = ap.parse_args(argv)
     try:
