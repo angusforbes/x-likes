@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# One command to bring the likes page up to date: scrape new likes -> categorise -> rebuild out/index.html
+# (the file your "X likes" Brave bookmark opens). Logs to ~/Work/x-likes-runs/.
+#   ./update            (or xlikes-update from anywhere)
+set -uo pipefail
+here="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
+cd "$here"
+logdir="$HOME/Work/x-likes-runs"; mkdir -p "$logdir"
+log="$logdir/update-$(date +%Y%m%d-%H%M%S).log"
+before=$(wc -l < data/likes.jsonl 2>/dev/null || echo 0)
+.venv/bin/python -m playwright install chromium chromium-headless-shell >/dev/null 2>&1 || true
+echo "Scraping new likes (log: $log)…"
+if ! ./xlikes scrape --incremental --headless --login-timeout 1 2>&1 | tee -a "$log"; then
+  if grep -q "Not logged in\|waiting for login" "$log"; then
+    echo "ERROR: your X login has lapsed. Run:  $here/xlikes login   (log in in the window), then xlikes-update again." >&2
+    notify-send -a "X Likes" "X login lapsed" "Run ~/Work/x-likes/xlikes login, then xlikes-update" 2>/dev/null || true
+  else
+    echo "ERROR: scrape failed; see $log" >&2
+  fi
+  exit 1
+fi
+echo "Categorising…"
+./xlikes categorize 2>&1 | tee -a "$log" || { echo "ERROR: categorize failed; see $log" >&2; exit 1; }
+echo "Rebuilding the page…"
+./xlikes export 2>&1 | tee -a "$log" || { echo "ERROR: export failed; see $log" >&2; exit 1; }
+after=$(wc -l < data/likes.jsonl); cats=$(wc -l < data/categories.jsonl)
+echo "Done: $after likes ($((after-before)) new), $cats categorised. Page: file://$here/out/index.html ($(date -r out/index.html '+%-I:%M %p %Z'))" | tee -a "$log"
+if [ "$cats" -lt "$after" ]; then
+  echo "WARNING: $((after-cats)) likes are not categorised yet (claude -p failed; see $log, e.g. spend limit). They show as uncategorised; re-run xlikes-update later to finish." >&2
+  exit 2
+fi
